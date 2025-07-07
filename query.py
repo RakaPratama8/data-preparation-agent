@@ -1,5 +1,3 @@
-from app import filename
-
 def build_msg_query(filename: str, user_query: str) -> str:
     return f"""
 Dataset: 

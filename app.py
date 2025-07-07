@@ -1,10 +1,3 @@
-"""
-Requirements (add to requirements.txt):
-
-streamlit
-pandas
-"""
-
 import streamlit as st
 import pandas as pd
 import time
@@ -12,9 +5,12 @@ import time
 from agent import AgentState
 from graph import app as agent_app
 from graph import config
-from query import msg_query
+from query import build_msg_query
 
-filename = ""
+if st.session_state.get("messages") is None:
+    st.session_state["messages"] = []  # Initialize chat history
+if st.session_state.get("dataframe") is None:
+    st.session_state["dataframe"] = None  # Initialize DataFrame state
 
 # --- App Title and Description ---
 st.set_page_config(page_title="CSV Analysis Chatbot", page_icon="📊")
@@ -26,33 +22,30 @@ st.write(
     """
 )
 
-# --- File Upload and Session State Management ---
-if "dataframe" not in st.session_state:
-    st.session_state["dataframe"] = None
-if "messages" not in st.session_state:
-    st.session_state["messages"] = []
+# --- File Upload and Session State Management (in sidebar) ---
+with st.sidebar:
+    st.header("Upload CSV")
+    uploaded_file = st.file_uploader(
+        "Upload your CSV file", type=["csv"], key="file_uploader"
+    )
 
-uploaded_file = st.file_uploader(
-    "Upload your CSV file", type=["csv"], key="file_uploader"
-)
-
-if uploaded_file is not None:
-    try:
-        df = pd.read_csv(uploaded_file)
-        st.session_state["dataframe"] = df
-        filename = uploaded_file.name
-        st.success(f"'{filename}' loaded successfully!")
-        # Initialize chat history with a welcome message if empty
-        if not st.session_state["messages"]:
-            st.session_state["messages"].append(
-                {
-                    "role": "assistant",
-                    "content": f"Hello! Your file '{filename}' is loaded. How can I help you analyze your data?",
-                }
-            )
-    except Exception as e:
-        st.error(f"Error loading file: {e}")
-        st.session_state["dataframe"] = None
+    if uploaded_file is not None:
+        try:
+            df = pd.read_csv(uploaded_file)
+            st.session_state["dataframe"] = df
+            filename = uploaded_file.name
+            st.success(f"'{filename}' loaded successfully!")
+            # Initialize chat history with a welcome message if empty
+            if not st.session_state["messages"]:
+                st.session_state["messages"].append(
+                    {
+                        "role": "assistant",
+                        "content": f"Hello! Your file '{filename}' is loaded. How can I help you analyze your data?",
+                    }
+                )
+        except Exception as e:
+            st.error(f"Error loading file: {e}")
+            st.session_state["dataframe"] = None
 
 # --- Chat Interface ---
 if st.session_state["dataframe"] is not None:
@@ -65,13 +58,9 @@ if st.session_state["dataframe"] is not None:
     user_query = st.chat_input("Ask a question about your data...")
 
     if user_query:
-        # Append user message to history
         st.session_state["messages"].append({"role": "user", "content": user_query})
 
-        def run_agent(dataframe, messages):
-            """
-            Run the real agent using LangGraph and return the assistant's response.
-            """
+        def run_agent(dataframe, messages, filename, user_query):
             try:
                 with st.status("Processing your request...") as status:
                     status.update(label="Analyzing your query...")
@@ -80,15 +69,12 @@ if st.session_state["dataframe"] is not None:
                     time.sleep(2)
                     status.update(label="Generating final response...")
                     time.sleep(1)
-                    # Prepare the agent state
-                    messages = msg_query.join([f"\n{messages}"])
-                    agent_state = AgentState(messages=messages)
-                    # Run the agent (single step)
-                    result = agent_app.invoke(
-                        agent_state,
-                        config=config
+                    # Build the prompt
+                    prompt = build_msg_query(filename, user_query)
+                    agent_state = AgentState(
+                        messages=[{"role": "user", "content": prompt}]
                     )
-                    # Extract the latest assistant message
+                    result = agent_app.invoke(agent_state, config=config)
                     assistant_msg = (
                         result["messages"][-1].content
                         if result["messages"]
@@ -99,13 +85,11 @@ if st.session_state["dataframe"] is not None:
             except Exception as e:
                 return f"Sorry, an error occurred while processing your request: {e}"
 
-        # Run the agent and get the response
         response = run_agent(
-            st.session_state["dataframe"], st.session_state["messages"]
+            st.session_state["dataframe"],
+            st.session_state["messages"],
+            filename,
+            user_query,
         )
-
-        # Append agent response to history
         st.session_state["messages"].append({"role": "assistant", "content": response})
-
-        # Rerun to display the updated chat
         st.rerun()
