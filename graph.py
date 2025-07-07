@@ -1,10 +1,13 @@
 import os
 
+from dotenv import load_dotenv
 from langgraph.graph import START, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from agent import AgentState, assistant
 from tools import all_tools
+
+load_dotenv()
 
 config = {"configurable": {"thread_id": os.environ["THREAD_ID"]}}
 

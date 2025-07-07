@@ -9,6 +9,13 @@ import streamlit as st
 import pandas as pd
 import time
 
+from agent import AgentState
+from graph import app as agent_app
+from graph import config
+from query import msg_query
+
+filename = ""
+
 # --- App Title and Description ---
 st.set_page_config(page_title="CSV Analysis Chatbot", page_icon="📊")
 st.title("📊 CSV Analysis Chatbot")
@@ -61,11 +68,9 @@ if st.session_state["dataframe"] is not None:
         # Append user message to history
         st.session_state["messages"].append({"role": "user", "content": user_query})
 
-        # --- Agent Simulation with Status Visualization ---
-        def run_agent(dataframe, user_query):
+        def run_agent(dataframe, messages):
             """
-            Simulate an AI agent analyzing the DataFrame and responding to the user's query.
-            This is a placeholder for real agent logic.
+            Run the real agent using LangGraph and return the assistant's response.
             """
             try:
                 with st.status("Processing your request...") as status:
@@ -75,19 +80,29 @@ if st.session_state["dataframe"] is not None:
                     time.sleep(2)
                     status.update(label="Generating final response...")
                     time.sleep(1)
-                    # Placeholder response
-                    answer = (
-                        f"Simulated answer to: '{user_query}'\n\n"
-                        "*(This is a placeholder. Integrate your AI agent here!)*"
+                    # Prepare the agent state
+                    messages = msg_query.join([f"\n{messages}"])
+                    agent_state = AgentState(messages=messages)
+                    # Run the agent (single step)
+                    result = agent_app.invoke(
+                        agent_state,
+                        config=config
+                    )
+                    # Extract the latest assistant message
+                    assistant_msg = (
+                        result["messages"][-1].content
+                        if result["messages"]
+                        else "(No response)"
                     )
                     status.update(label="Analysis complete!", state="complete")
-                return answer
+                return assistant_msg
             except Exception as e:
-                # Return error message to be displayed in chat
                 return f"Sorry, an error occurred while processing your request: {e}"
 
         # Run the agent and get the response
-        response = run_agent(st.session_state["dataframe"], user_query)
+        response = run_agent(
+            st.session_state["dataframe"], st.session_state["messages"]
+        )
 
         # Append agent response to history
         st.session_state["messages"].append({"role": "assistant", "content": response})
