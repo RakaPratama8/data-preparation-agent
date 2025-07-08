@@ -1,5 +1,7 @@
-from langchain.tools import tool
 import streamlit as st
+import dataframe_singleton
+
+from langchain.tools import tool
 
 @tool
 def check_for_null_values(df_name: str) -> str:
@@ -11,7 +13,7 @@ def check_for_null_values(df_name: str) -> str:
         df_name (str): The name of the DataFrame to check for null values.
     """
     try:
-        df = st.session_state.get("dataframe")
+        df = dataframe_singleton.dataframe
         if df is None:
             return "No DataFrame is loaded."
         null_counts = df.isna().sum()
@@ -36,7 +38,7 @@ def stats_of_dataset(df_name: str) -> str:
         df_name (str): The name of the DataFrame to retrieve statistics for.
     """
     try:
-        df = st.session_state.get("dataframe")
+        df = dataframe_singleton.dataframe
         if df is None:
             return "No DataFrame is loaded."
         describe_dict = df.describe().to_dict()

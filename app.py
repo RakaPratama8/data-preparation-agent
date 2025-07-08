@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import time
 
+import dataframe_singleton
 from agent import AgentState
 from graph import app as agent_app
 from graph import config
@@ -35,6 +36,7 @@ with st.sidebar:
         try:
             dataframe = pd.read_csv(uploaded_file)
             st.session_state["dataframe"] = dataframe
+            dataframe_singleton.dataframe = dataframe
             filename = uploaded_file.name
             st.success(f"'{filename}' loaded successfully!")
             # Initialize chat history with a welcome message if empty
