@@ -1,17 +1,17 @@
 from langchain.tools import tool
 import streamlit as st
 
-
 @tool
 def check_for_null_values(df_name: str) -> str:
     """
     Calculates the number of null (NaN) values for each column in the dataset.
     Use this tool to check for missing data.
+    
+    Args:
+        df_name (str): The name of the DataFrame to check for null values.
     """
     try:
-        df = st.session_state.get(
-            "dataframe"
-        )  # <-- Get the DataFrame from session state
+        df = st.session_state.get("dataframe")
         if df is None:
             return "No DataFrame is loaded."
         null_counts = df.isna().sum()
@@ -31,11 +31,12 @@ def stats_of_dataset(df_name: str) -> str:
     """
     Retrieve an information about statistics value of dataset.
     use this tool if you want to analyze or enriched your information about dataset
+    
+    Args:
+        df_name (str): The name of the DataFrame to retrieve statistics for.
     """
     try:
-        df = st.session_state.get(
-            "dataframe"
-        )  # <-- Get the DataFrame from session state
+        df = st.session_state.get("dataframe")
         if df is None:
             return "No DataFrame is loaded."
         describe_dict = df.describe().to_dict()
