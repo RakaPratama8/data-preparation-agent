@@ -8,8 +8,6 @@ from graph import app as agent_app
 from graph import config
 from query import build_msg_query
 
-# Tools
-
 if st.session_state.get("messages") is None:
     st.session_state["messages"] = []  # Initialize chat history
 if st.session_state.get("dataframe") is None:
