@@ -1,7 +1,7 @@
 import dataframe_singleton
-
+import io
+import pandas as pd
 from langchain.tools import tool
-
 
 @tool
 def check_for_null_values(df_name: str) -> str:
@@ -64,10 +64,21 @@ def get_dataset_info(df_name: str) -> str:
         df = dataframe_singleton.dataframe
         if df is None:
             return "No DataFrame is loaded."
-        info = df.info()
+        
+        buffer = io.StringIO()
+        df.info(buf=buffer)
+        lines = buffer.getvalue().splitlines()
+        df_info = (pd.DataFrame([x.split() for x in lines[5:-2]], columns=lines[3].split())
+            .drop('Count',axis=1)
+            .rename(columns={'Non-Null':'Non-Null Count'}))
+        
+        df_info = df_info.drop(columns="#").set_index("Column")
+        info = df_info.to_dict()
+        
         return f"Dataset '{df_name}' information:\n{info}"
     except Exception as e:
         return f"An error occurred while retrieving dataset info: {e}"
+
 
 @tool
 def get_a_number_of_rows_and_columns(df_name: str) -> str:
@@ -87,6 +98,7 @@ def get_a_number_of_rows_and_columns(df_name: str) -> str:
     except Exception as e:
         return f"An error occurred while retrieving dataset size: {e}"
 
+
 @tool
 def get_dataset_head(df_name: str, num_rows: int = 5) -> str:
     """
@@ -102,7 +114,7 @@ def get_dataset_head(df_name: str, num_rows: int = 5) -> str:
         if df is None:
             return "No DataFrame is loaded."
         head_data = df.head(num_rows)
-        return f"First {num_rows} rows of '{df_name}':\n{head_data.to_string()}"
+        return f"First {num_rows} rows of '{df_name}':\n{head_data.to_markdown()}"
     except Exception as e:
         return f"An error occurred while retrieving dataset head: {e}"
 
@@ -125,6 +137,40 @@ def get_column_names(df_name: str) -> str:
     except Exception as e:
         return f"An error occurred while retrieving column names: {e}"
 
+
+@tool
+def check_for_outliers(df_name: str, column: str) -> str:
+    """
+    Check for outliers in a specific column of the dataset.
+    Use this tool to identify potential outliers in your data.
+
+    Args:
+        df_name (str): The name of the DataFrame to check for outliers.
+        column (str): The column to check for outliers.
+    """
+    try:
+        df = dataframe_singleton.dataframe
+        if df is None:
+            return "No DataFrame is loaded."
+        if column not in df.columns:
+            return f"Column '{column}' does not exist in '{df_name}'."
+        elif df[column].dtype not in ['int64', 'float64']:
+            return f"Column '{column}' in '{df_name}' is not numeric and cannot be checked for outliers."
+        
+        q1 = df[column].quantile(0.25)
+        q3 = df[column].quantile(0.75)
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        
+        outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
+        
+        if not outliers.empty:
+            return f"Outliers found in '{df_name}' for column '{column}':\n{outliers.to_string()}"
+        else:
+            return f"No outliers found in '{df_name}' for column '{column}'."
+    except Exception as e:
+        return f"An error occurred while checking for outliers: {e}"
 
 # --- Tools for Dataframe Manipulation ---
 @tool
@@ -187,8 +233,52 @@ def filter_dataset(df_name: str, column: str, value: str) -> str:
     except Exception as e:
         return f"An error occurred while filtering the dataset: {e}"
 
+
 @tool
-def change_value_in_column(df_name: str, column: str, old_value: str, new_value: str) -> str:
+def handle_outliers(
+    df_name: str, column: str, action: str, threshold: float = 1.5
+) -> str:
+    """
+    Handle outliers in a specific column of the dataset.
+    Use this tool to either remove or cap outliers.
+
+    Args:
+        df_name (str): The name of the DataFrame to handle outliers for.
+        column (str): The column to check for outliers.
+        action (str): The action to perform ('remove' or 'cap').
+        threshold (float): The threshold for defining outliers (default is 1.5).
+    """
+    try:
+        df = dataframe_singleton.dataframe
+        if df is None:
+            return "No DataFrame is loaded."
+        if column not in df.columns:
+            return f"Column '{column}' does not exist in '{df_name}'."
+        
+        q1 = df[column].quantile(0.25)
+        q3 = df[column].quantile(0.75)
+        iqr = q3 - q1
+        lower_bound = q1 - threshold * iqr
+        upper_bound = q3 + threshold * iqr
+        
+        if action == "remove":
+            df_cleaned = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+            dataframe_singleton.dataframe = df_cleaned
+            return f"Outliers removed from '{df_name}' in column '{column}'. Remaining rows: {len(df_cleaned)}"
+        elif action == "cap":
+            df[column] = df[column].clip(lower=lower_bound, upper=upper_bound)
+            dataframe_singleton.dataframe = df
+            return f"Outliers capped in '{df_name}' for column '{column}'."
+        else:
+            return "Invalid action. Use 'remove' or 'cap'."
+    except Exception as e:
+        return f"An error occurred while handling outliers: {e}"
+
+
+@tool
+def change_value_in_column(
+    df_name: str, column: str, old_value: str, new_value: str
+) -> str:
     """
     Change a specific value in a column of the dataset.
     Use this tool to update values in your dataset.
@@ -209,8 +299,6 @@ def change_value_in_column(df_name: str, column: str, old_value: str, new_value:
     except Exception as e:
         return f"An error occurred while changing values in the dataset: {e}"
 
-
-
 all_tools = [
     check_for_null_values,
     stats_of_dataset,
@@ -220,5 +308,6 @@ all_tools = [
     get_a_number_of_rows_and_columns,
     handle_null_values,
     filter_dataset,
-    change_value_in_column
+    change_value_in_column,
+    check_for_outliers,
 ]

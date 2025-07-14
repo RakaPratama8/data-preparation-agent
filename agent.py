@@ -19,4 +19,5 @@ class AgentState(TypedDict):
 
 
 def assistant(state: AgentState):
-    return {"messages": model_with_tools.invoke(state["messages"])}
+    result = model_with_tools.invoke(state["messages"])
+    return {"messages": result}
