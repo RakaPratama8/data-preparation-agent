@@ -3,6 +3,27 @@ import io
 import pandas as pd
 from langchain.tools import tool
 
+
+@tool
+def analyze_dataset(df_name: str) -> str:
+    """
+    Analyze the dataset and provide insights.
+    Use this tool to get a quick overview of your dataset.
+
+    Args:
+        df_name (str): The name of the DataFrame to analyze.
+    """
+    try:
+        df = dataframe_singleton.dataframe
+        if df is None:
+            return "No DataFrame is loaded."
+        num_rows, num_columns = df.shape
+        column_names = df.columns.tolist()
+        return f"Dataset '{df_name}' has {num_rows} rows and {num_columns} columns. Columns: {', '.join(column_names)}"
+    except Exception as e:
+        return f"An error occurred while analyzing the dataset: {e}"
+
+
 @tool
 def check_for_null_values(df_name: str) -> str:
     """
@@ -64,17 +85,19 @@ def get_dataset_info(df_name: str) -> str:
         df = dataframe_singleton.dataframe
         if df is None:
             return "No DataFrame is loaded."
-        
+
         buffer = io.StringIO()
         df.info(buf=buffer)
         lines = buffer.getvalue().splitlines()
-        df_info = (pd.DataFrame([x.split() for x in lines[5:-2]], columns=lines[3].split())
-            .drop('Count',axis=1)
-            .rename(columns={'Non-Null':'Non-Null Count'}))
-        
+        df_info = (
+            pd.DataFrame([x.split() for x in lines[5:-2]], columns=lines[3].split())
+            .drop("Count", axis=1)
+            .rename(columns={"Non-Null": "Non-Null Count"})
+        )
+
         df_info = df_info.drop(columns="#").set_index("Column")
         info = df_info.to_dict()
-        
+
         return f"Dataset '{df_name}' information:\n{info}"
     except Exception as e:
         return f"An error occurred while retrieving dataset info: {e}"
@@ -154,23 +177,24 @@ def check_for_outliers(df_name: str, column: str) -> str:
             return "No DataFrame is loaded."
         if column not in df.columns:
             return f"Column '{column}' does not exist in '{df_name}'."
-        elif df[column].dtype not in ['int64', 'float64']:
+        elif df[column].dtype not in ["int64", "float64"]:
             return f"Column '{column}' in '{df_name}' is not numeric and cannot be checked for outliers."
-        
+
         q1 = df[column].quantile(0.25)
         q3 = df[column].quantile(0.75)
         iqr = q3 - q1
         lower_bound = q1 - 1.5 * iqr
         upper_bound = q3 + 1.5 * iqr
-        
+
         outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
-        
+
         if not outliers.empty:
             return f"Outliers found in '{df_name}' for column '{column}':\n{outliers.to_string()}"
         else:
             return f"No outliers found in '{df_name}' for column '{column}'."
     except Exception as e:
         return f"An error occurred while checking for outliers: {e}"
+
 
 # --- Tools for Dataframe Manipulation ---
 @tool
@@ -224,12 +248,23 @@ def filter_dataset(df_name: str, column: str, value: str) -> str:
         df = dataframe_singleton.dataframe
         if df is None:
             return "No DataFrame is loaded."
-        filtered_df = df[df[column] == value]
+        if column not in df.columns:
+            return f"Column '{column}' does not exist in '{df_name}'."
+        col_dtype = df[column].dtype
+        # Try to convert value to the column's dtype if possible
+        if pd.api.types.is_numeric_dtype(col_dtype):
+            try:
+                value_casted = pd.to_numeric(value)
+            except Exception:
+                return f"Value '{value}' cannot be converted to a numeric type for column '{column}'."
+        else:
+            value_casted = value
+        filtered_df = df[df[column] == value_casted]
         if not filtered_df.empty:
             dataframe_singleton.dataframe = filtered_df
-            return f"Filtered dataset '{df_name}' where {column} equals {value}:\n{filtered_df.to_string()}"
+            return f"Filtered dataset '{df_name}' where {column} equals {value_casted}:\n{filtered_df.to_string()}"
         else:
-            return f"No rows found in '{df_name}' where {column} equals {value}."
+            return f"No rows found in '{df_name}' where {column} equals {value_casted}."
     except Exception as e:
         return f"An error occurred while filtering the dataset: {e}"
 
@@ -254,13 +289,13 @@ def handle_outliers(
             return "No DataFrame is loaded."
         if column not in df.columns:
             return f"Column '{column}' does not exist in '{df_name}'."
-        
+
         q1 = df[column].quantile(0.25)
         q3 = df[column].quantile(0.75)
         iqr = q3 - q1
         lower_bound = q1 - threshold * iqr
         upper_bound = q3 + threshold * iqr
-        
+
         if action == "remove":
             df_cleaned = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
             dataframe_singleton.dataframe = df_cleaned
@@ -298,6 +333,7 @@ def change_value_in_column(
         return f"Changed '{old_value}' to '{new_value}' in column '{column}' of '{df_name}'."
     except Exception as e:
         return f"An error occurred while changing values in the dataset: {e}"
+
 
 all_tools = [
     check_for_null_values,

@@ -13,6 +13,7 @@ User's query:
 {user_query}
 """
 
+
 def build_msg_system() -> str:
     return """You are a helpful assistant for data analysis. 
 You can answer questions about the dataset, provide insights, and suggest modifications. 

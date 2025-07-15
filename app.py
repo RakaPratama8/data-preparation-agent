@@ -72,6 +72,8 @@ if st.session_state["dataframe"] is not None:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
+    print("Chat history:", st.session_state["messages"])
+
     # Chat input for user
     user_query = st.chat_input("Ask a question about your data...")
 
@@ -89,11 +91,11 @@ if st.session_state["dataframe"] is not None:
                     time.sleep(1)
                     # Build the prompt
                     prompt = build_msg_query(filename, user_query)
-                    system_prompt  = build_msg_system()
+                    system_prompt = build_msg_system()
                     agent_state = AgentState(
                         messages=[
                             {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": prompt}
+                            {"role": "user", "content": prompt},
                         ]
                     )
                     result = agent_app.invoke(agent_state, config=config)
@@ -115,14 +117,15 @@ if st.session_state["dataframe"] is not None:
         )
         st.session_state["messages"].append({"role": "assistant", "content": response})
         st.rerun()
-    
-    st.download_button("Download Modified CSV", 
-                    data=st.session_state["dataframe"].to_csv(index=False, sep=';'),
-                    file_name="modified_data.csv",
-                    mime="text/csv",
-                    help="Download the modified DataFrame as a CSV file.",
-                    key="download_button",
-                    )
+
+    st.download_button(
+        "Download Modified CSV",
+        data=st.session_state["dataframe"].to_csv(index=False, sep=";"),
+        file_name="modified_data.csv",
+        mime="text/csv",
+        help="Download the modified DataFrame as a CSV file.",
+        key="download_button",
+    )
 else:
     st.title("📊 DataFrame Agent Chatbot")
     st.markdown(
