@@ -72,8 +72,6 @@ if st.session_state["dataframe"] is not None:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    print("Chat history:", st.session_state["messages"])
-
     # Chat input for user
     user_query = st.chat_input("Ask a question about your data...")
 
