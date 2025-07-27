@@ -9,7 +9,7 @@ from tools import all_tools
 
 load_dotenv()
 
-config = {"configurable": {"thread_id": os.environ["THREAD_ID"]}}
+config = {"configurable": {"thread_id": "Th7@d_!D_pW$z$rD9"}}
 
 builder = StateGraph(AgentState)
 
