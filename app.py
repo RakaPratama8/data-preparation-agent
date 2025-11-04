@@ -9,14 +9,12 @@ from graph import config
 from query import build_msg_query, build_msg_system
 
 if st.session_state.get("messages") is None:
-    st.session_state["messages"] = []  # Initialize chat history
+    st.session_state["messages"] = []
 if st.session_state.get("dataframe") is None:
-    st.session_state["dataframe"] = None  # Initialize DataFrame state
+    st.session_state["dataframe"] = None
 
-# --- App Title and Description ---
 st.set_page_config(page_title="Dataframe Agent Chatbot", page_icon="📊")
 
-# --- File Upload and Session State Management (in sidebar) ---
 with st.sidebar:
     st.markdown(
         "<h2 style='text-align: center; color: #4F8BF9;'>📤 Upload Your CSV File</h2>",
@@ -44,7 +42,6 @@ with st.sidebar:
             dataframe_singleton.backup_dataframe = dataframe.copy()
             filename = uploaded_file.name
             st.success(f"'{filename}' loaded successfully!")
-            # Initialize chat history with a welcome message if empty
             if not st.session_state["messages"]:
                 st.session_state["messages"].append(
                     {
@@ -56,9 +53,7 @@ with st.sidebar:
             st.error(f"Error loading file: {e}")
             st.session_state["dataframe"] = None
 
-# --- Chat Interface ---
 if st.session_state["dataframe"] is not None:
-    # Hide the sidebar when a CSV is loaded and chat is active
     st.markdown(
         """
         <style>
@@ -67,12 +62,10 @@ if st.session_state["dataframe"] is not None:
         """,
         unsafe_allow_html=True,
     )
-    # Display chat history
     for msg in st.session_state["messages"]:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Chat input for user
     user_query = st.chat_input("Ask a question about your data...")
 
     if user_query:
@@ -87,7 +80,6 @@ if st.session_state["dataframe"] is not None:
                     time.sleep(2)
                     status.update(label="Generating final response...")
                     time.sleep(1)
-                    # Build the prompt
                     prompt = build_msg_query(filename, user_query)
                     system_prompt = build_msg_system()
                     agent_state = AgentState(
