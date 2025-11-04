@@ -8,7 +8,7 @@ from typing import TypedDict, Annotated
 
 
 model = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash", temperature=0, api_key=os.environ["GEMINI_API_KEY"]
+    model="gemini-2.0-flash", temperature=0, api_key="AIzaSyB__hbFsn9A9wxMrIDsoA-Sr8UOezz5zEg"
 )
 
 model_with_tools = model.bind_tools(all_tools)
